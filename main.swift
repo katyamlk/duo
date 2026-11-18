@@ -352,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         let wv = webViews[selected]
         wv.magnification = 1.0
         wv.pageZoom = z
+        relayout(wv)
         UserDefaults.standard.set(Double(z), forKey: "zoom_\(selected)")
     }
     @objc func zoomIn() { setZoom(webViews[selected].pageZoom + 0.1) }
@@ -368,6 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         }
         segmented?.selectedSegment = t
         window.makeFirstResponder(webViews[t])
+        relayout(webViews[t])
     }
 
     // Счётчики непрочитанных
@@ -694,6 +696,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
     }
 
     // Закрытие окна не выключает приложение, чтобы уведомления продолжали приходить
+    // Заставляем страницу пересчитать раскладку под реальную ширину окна.
+    // Slack запоминает ширину панелей и после смены масштаба или размера окна оставляет пустую полосу справа.
+    func relayout(_ wv: WKWebView) {
+        Task { @MainActor in
+            for delay in [150, 600] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                let f = wv.frame
+                wv.setFrameSize(NSSize(width: f.width - 1, height: f.height))
+                wv.setFrameSize(f.size)
+                wv.evaluateJavaScript("window.dispatchEvent(new Event('resize'))", completionHandler: nil)
+            }
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if webViews.contains(webView) { relayout(webView) }
+    }
+
+    func windowDidEndLiveResize(_ notification: Notification) {
+        webViews.forEach { relayout($0) }
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         window.orderOut(nil)
         webViews.forEach { $0.pauseAllMediaPlayback(completionHandler: nil) }
