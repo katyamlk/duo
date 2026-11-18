@@ -1,0 +1,9 @@
+build/
+dist/
+_old/
+.DS_Store
+.next-commit-msg
+*-v[0-9]*.swift
+*-v[0-9]*.plist
+*-v[0-9]*.command
+*-v[0-9]*.icns
