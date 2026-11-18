@@ -28,3 +28,16 @@ bash package.command    # creates ~/Downloads/Duo.dmg (Apple Silicon + Intel) fo
 ```
 bash push.command
 ```
+
+## Download
+
+Latest build (Apple Silicon + Intel, macOS 14+):
+https://github.com/katyamlk/duo/releases/latest/download/Duo.dmg
+
+Open the .dmg, drag Duo to Applications. On first launch: System Settings > Privacy & Security > "Open Anyway".
+
+## Release a new version
+
+```
+bash release.command "What changed"
+```
