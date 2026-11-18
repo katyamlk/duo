@@ -277,6 +277,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
                 wv.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
                 wv.bottomAnchor.constraint(equalTo: container.bottomAnchor)
             ])
+            wv.allowsMagnification = true
+            let savedZoom = UserDefaults.standard.double(forKey: "zoom_\(i)")
+            wv.pageZoom = savedZoom > 0 ? savedZoom : 1.0
             wv.load(URLRequest(url: s.url))
             webViews.append(wv)
 
@@ -304,7 +307,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if id == backID { return navButton(id, symbol: "chevron.left", label: tr("Назад", "Back") + " (Cmd+[)", action: #selector(goBack)) }
         if id == forwardID { return navButton(id, symbol: "chevron.right", label: tr("Вперед", "Forward") + " (Cmd+])", action: #selector(goForward)) }
-        if id == homeID { return navButton(id, symbol: "house", label: tr("На головну", "Home") + " (Cmd+0)", action: #selector(goHome)) }
+        if id == homeID { return navButton(id, symbol: "house", label: tr("На головну", "Home") + " (Cmd+Shift+H)", action: #selector(goHome)) }
         if id == reloadID {
             let item = NSToolbarItem(itemIdentifier: id)
             item.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: tr("Оновити", "Reload"))
@@ -342,6 +345,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
     @objc func goBack() { webViews[selected].goBack() }
     @objc func goHome() { webViews[selected].load(URLRequest(url: services[selected].url)) }
     @objc func goForward() { webViews[selected].goForward() }
+
+    // Масштаб: отдельно для каждой вкладки, запоминается
+    func setZoom(_ value: CGFloat) {
+        let z = min(max(value, 0.5), 2.0)
+        let wv = webViews[selected]
+        wv.magnification = 1.0
+        wv.pageZoom = z
+        UserDefaults.standard.set(Double(z), forKey: "zoom_\(selected)")
+    }
+    @objc func zoomIn() { setZoom(webViews[selected].pageZoom + 0.1) }
+    @objc func zoomOut() { setZoom(webViews[selected].pageZoom - 0.1) }
+    @objc func zoomReset() { setZoom(1.0) }
 
     func select(_ tab: Int) {
         let t = (0..<services.count).contains(tab) ? tab : 0
@@ -725,7 +740,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         view.addItem(.separator())
         view.addItem(withTitle: tr("Назад", "Back"), action: #selector(goBack), keyEquivalent: "[").target = self
         view.addItem(withTitle: tr("Вперед", "Forward"), action: #selector(goForward), keyEquivalent: "]").target = self
-        view.addItem(withTitle: tr("На головну", "Home"), action: #selector(goHome), keyEquivalent: "0").target = self
+        let home = view.addItem(withTitle: tr("На головну", "Home"), action: #selector(goHome), keyEquivalent: "h")
+        home.keyEquivalentModifierMask = [.command, .shift]
+        home.target = self
+        view.addItem(.separator())
+        view.addItem(withTitle: tr("Збільшити", "Zoom In"), action: #selector(zoomIn), keyEquivalent: "=").target = self
+        let zoomInPlus = view.addItem(withTitle: tr("Збільшити", "Zoom In"), action: #selector(zoomIn), keyEquivalent: "+")
+        zoomInPlus.target = self
+        zoomInPlus.isAlternate = false
+        zoomInPlus.isHidden = true
+        zoomInPlus.allowsKeyEquivalentWhenHidden = true
+        view.addItem(withTitle: tr("Зменшити", "Zoom Out"), action: #selector(zoomOut), keyEquivalent: "-").target = self
+        view.addItem(withTitle: tr("Реальний розмір", "Actual Size"), action: #selector(zoomReset), keyEquivalent: "0").target = self
+        view.addItem(.separator())
         view.addItem(withTitle: tr("Оновити вкладку", "Reload Tab"), action: #selector(reload), keyEquivalent: "r").target = self
         let all = view.addItem(withTitle: tr("Оновити всі вкладки", "Reload All Tabs"), action: #selector(reloadAll), keyEquivalent: "r")
         all.keyEquivalentModifierMask = [.command, .shift]
